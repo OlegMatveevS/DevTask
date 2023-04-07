@@ -35,8 +35,8 @@ spec:
               cpu: "0.5" # Запрос на больше ресурсов CPU для первых запросов
               memory: "128Mi" # Ровное потребление памяти в районе 128M
             limits:
-              cpu: "1" # Ограничение потребления CPU
-              memory: "256Mi" # Ограничение потребления памяти
+              cpu: "1" Ограничение потребления CPU
+              memory: "256Mi" Ограничение потребления памяти
           readinessProbe:
             httpGet:
               path: /health
@@ -49,7 +49,25 @@ spec:
               port: 8080
             initialDelaySeconds: 15 # Учитываем время инициализации приложения (5-10 секунд)
             periodSeconds: 5
-       
+          # Передача в приложение через переменные окружения (безопасный способ обращения с секретными данными).  
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: my-web-app-secrets
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: my-web-app-secrets
+                  key: db_password
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: my-web-app-config
 ---
 apiVersion: v1
 kind: Service
@@ -64,24 +82,22 @@ spec:
       targetPort: 8080
   type: LoadBalancer # Используем LoadBalancer для распределения нагрузки между подами
 ---
-# Учитывая дневной цикл нагрузки можно использовать HPA, для автоматического масштабирования количества подов в зависимости от нагрузки. 
-# Это позволит оптимизировать потребление ресурсов кластера, создавая дополнительные поды при пиковой нагрузке и удаляя их при снижении нагрузки.
-apiVersion: autoscaling/v2beta2
-kind: HorizontalPodAutoscaler
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: my-web-app
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: my-web-app
-  minReplicas: 4
-  maxReplicas: 10 # Максимальное количество подов при масштабировании
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 80 # Масштабировать, когда среднее использование CPU достигает 80%
-
+  name: my-web-app-config
+data:
+  app-config.yaml: |
+    logLevel: info
+    database:
+      host: db.test.com
+      port: 5432
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-web-app-secrets
+type: Opaque
+data:
+  db_username: dGVzdA== # base64 (=test)
+  db_password: dGVzdA== # base64 (=test)
