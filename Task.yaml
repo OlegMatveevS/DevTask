@@ -49,6 +49,7 @@ spec:
               port: 8080
             initialDelaySeconds: 15 # Учитываем время инициализации приложения (5-10 секунд)
             periodSeconds: 5
+       
 ---
 apiVersion: v1
 kind: Service
@@ -62,3 +63,25 @@ spec:
       port: 80
       targetPort: 8080
   type: LoadBalancer # Используем LoadBalancer для распределения нагрузки между подами
+---
+# Учитывая дневной цикл нагрузки можно использовать HPA, для автоматического масштабирования количества подов в зависимости от нагрузки. 
+# Это позволит оптимизировать потребление ресурсов кластера, создавая дополнительные поды при пиковой нагрузке и удаляя их при снижении нагрузки.
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-web-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-web-app
+  minReplicas: 4
+  maxReplicas: 10 # Максимальное количество подов при масштабировании
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80 # Масштабировать, когда среднее использование CPU достигает 80%
+
