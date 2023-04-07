@@ -26,7 +26,7 @@ spec:
                     operator: In
                     values:
                       - my-web-app
-              topologyKey: "failure-domain.beta.kubernetes.io/zone"
+              topologyKey: "topology.kubernetes.io/zone"
       containers:
         - name: my-web-app
           image: my-web-app:v1
@@ -101,3 +101,18 @@ type: Opaque
 data:
   db_username: dGVzdA== # base64 (=test)
   db_password: dGVzdA== # base64 (=test)
+---
+# HPA Будет мониторить использование CPU и автоматически масштабировать количество подов в пределах заданных минимального и максимального количества
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-web-app-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-web-app
+  minReplicas: 1
+  maxReplicas: 4 
+  targetCPUUtilizationPercentage: 80 # Масштабировать поды, когда уровень использования CPU достигает 80%
+
